@@ -1,0 +1,7 @@
+* wscript detection of glib-mkenums: waf issue 720
+
+* then discuss wscript on glib mailing list
+
+* Currently the wscript follows what the makefile does, maybe it would be better to validate the schemas
+  without generating a .xml.valid file since there's not actually any point, waf can do better than this
+  

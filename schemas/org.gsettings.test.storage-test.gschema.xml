@@ -1,0 +1,67 @@
+<schemalist>
+  <schema id="org.gsettings.test.storage-test" path="/tests/storage/" gettext-domain="test">
+    <!-- Simple types -->
+    <key name="bool" type="b">
+      <default>true</default>
+    </key>
+
+    <key name="int32" type="i">
+      <default>55</default>
+    </key>
+
+    <key name="a-5" type="i">
+      <default>666666</default>
+    </key>
+
+    <key name="qword" type="x">
+      <default>4398046511104</default>
+    </key>
+
+    <key name="string" type="s">
+      <default l10n="messages">"Hello world"</default>
+    </key>
+
+    <key name="junk" type="s">
+      <default l10n="messages">"Junk"</default>
+    </key>
+
+
+    <!-- Hard types -->
+    <key name="double" type="d">
+      <default>3.1415926535897932</default>
+      <summary>delicious</summary>
+    </key>
+
+    <key name="cheese" enum="org.gsettings.test.CheeseType">
+      <default>'shropshire-blue'</default>
+    </key>
+
+    <!-- Complex types -->
+
+    <key name="box" type="(iii)">
+      <default>(20,30,30)</default>
+    </key>
+
+    <key name="noughts-and-crosses" type="a(iii)">
+      <default>[(1,2,0),(2,1,1),(2,2,1)]</default>
+    </key>
+
+    <key name="breakfast" type="a{sd}">
+      <default>{ "salmon": 5.0,
+                 "eggs": 9.0,
+                 "bacon": 7.0,
+                 "hash browns": 10.0,
+                 "fried bread": 1.5,
+                 "mushrooms": -50.0
+               }
+      </default>
+    </key>
+
+  </schema>
+
+  <schema id="org.gsettings.test.storage-test.long-path">
+    <key name="marker" type="ms">
+      <default>nothing</default>
+    </key>
+  </schema>
+</schemalist>

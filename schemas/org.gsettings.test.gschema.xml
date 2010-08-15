@@ -1,0 +1,21 @@
+<schemalist>
+  <schema id="org.gsettings.test" path="/tests/" gettext-domain="test">
+    <key name="on" type="b">
+      <default>false</default>
+      <summary>Is it on?</summary>
+    </key>
+
+    <key name="greeting" type="s">
+      <default l10n="messages">"Hello, earthlings"</default>
+      <summary>A greeting</summary>
+      <description>
+        Greeting of the invading martians
+      </description>
+    </key>
+
+    <key name="box" type="(ii)">
+      <default>(20,30)</default>
+    </key>
+
+  </schema>
+</schemalist>
