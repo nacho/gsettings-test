@@ -161,10 +161,13 @@ def build(bld):
 	                   packages = 'gtk+-2.0',
 	                   target = 'notify-test',
 	                   uselib = 'GTK GLIB GIO',
-	                   gsettings_enum_namespace = 'org.gsettings.test',
-	                   gsettings_enum_files = ['src/storage-test-enums.h'],
-	                   gsettings_schema_files = ['schemas/org.gsettings.test.storage-test.gschema.xml'],
 	                   source = ['src/notify-test.c'])
+
+	spped_test = bld (features = 'cc cprogram gsettings',
+	                  packages = 'gtk+-2.0',
+	                  target = 'speed-test',
+	                  uselib = 'GTK GLIB GIO',
+	                  source = ['src/speed-test.c'])
 
 ## OPTIONS FOR SPECIFYING THE SETTINGS FILE
 

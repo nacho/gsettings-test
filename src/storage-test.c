@@ -43,7 +43,7 @@ g_warning_win32_error (DWORD result_code,
 };
 
 static gboolean
-reg_open_key (gchar *key_name, HKEY *hkey)
+reg_open_path (gchar *key_name, HKEY *hkey)
 {
   gchar *path;
   LONG   result;
@@ -60,15 +60,15 @@ reg_open_key (gchar *key_name, HKEY *hkey)
 
 
 #define TEST_TYPE(_s, _t, _f, _k, _d, _i)  { \
-  _t value;                              \
-  /* Check default/existing value */     \
+  _t value;                                  \
+  /* Check default/existing value */         \
   g_settings_get (_s, _k, _f, &value, NULL); \
-  g_assert (value == _d);                \
-  /* Set a value and check again */      \
-  g_settings_set (_s, _k, _f, _i, NULL);     \
+  g_assert (value == _d);                    \
+  /* Set a value and check again */          \
+  g_settings_set (_s, _k, _f, (_t)_i, NULL); \
   g_settings_get (_s, _k, _f, &value, NULL); \
-  g_assert (value == _i);                \
-  /* Set back again */                   \
+  g_assert (value == _i);                    \
+  /* Set back again */                       \
   g_settings_set (_s, _k, _f, _d, NULL);    }
 
 
@@ -81,9 +81,12 @@ simple_test (gconstpointer user_data)
   settings = g_settings_new ("org.gsettings.test.storage-test");
 
   TEST_TYPE (settings, gboolean, "b", "bool", TRUE, FALSE);
+
   TEST_TYPE (settings, gint32,   "i", "int32", 55, -999);
   TEST_TYPE (settings, gint32,   "i", "a-5", 666666, 66666666);
-  //TEST_TYPE (settings, guint64, "qword", 4398046511104, 31313131);
+
+  TEST_TYPE (settings, guint64,  "x", "qword", 4398046511104, 31313131);
+  TEST_TYPE (settings, guint64,  "x", "qword", 4398046511104, -1);
 
   string = g_settings_get_string (settings, "string");
   g_assert_cmpstr (string, ==, "Hello world");
@@ -143,6 +146,41 @@ complex_test (gconstpointer user_data)
   g_object_unref (settings);
 };
 
+/* I don't see how this could not work, but you know ... */
+static void
+delay_apply_test (gconstpointer user_data)
+{
+  GSettings *settings;
+  gchar     *string;
+
+  settings = g_settings_new ("org.gsettings.test.storage-test");
+  g_settings_delay (settings);
+
+  /* If these reads go okay, I'm sure the values are fine (unless GVariant is broken) */
+  g_settings_set_int (settings, "a-5", 88);
+  g_settings_set_string (settings, "string", "I got 99 problems");
+  g_settings_set_string (settings, "junk", "but GSettings ain't one");
+
+  g_settings_apply (settings);
+  
+  g_assert_cmpint (g_settings_get_int (settings, "a-5"), ==, 88);
+  g_object_unref (settings);
+
+  settings = g_settings_new ("org.gsettings.test.storage-test");
+  g_assert_cmpint (g_settings_get_int (settings, "a-5"), ==, 88);
+
+  string = g_settings_get_string (settings, "junk");
+  g_assert_cmpstr (string, ==, "but GSettings ain't one");
+  g_free (string);
+
+  g_settings_reset (settings, "a-5");
+  g_settings_reset (settings, "junk");
+  g_settings_reset (settings, "string");
+
+  g_object_unref (settings);
+};
+
+
 
 /* Things that don't map naturally to anything */
 static void
@@ -183,7 +221,10 @@ breakage_test (gconstpointer user_data)
   /* Delete a value */
   g_settings_set_string (settings, "string", "Calm down");
 
-  if (reg_open_key ("tests\\storage", &hpath))
+  //printf ("Will it notify again ???\n");
+  g_usleep (10000);
+
+  if (reg_open_path ("tests\\storage", &hpath))
     {
      LONG result = RegDeleteValueA (hpath, "string");
      if (result != ERROR_SUCCESS)
@@ -191,15 +232,20 @@ breakage_test (gconstpointer user_data)
     }
   RegCloseKey (hpath);
 
+  /* Give the change a chance to propagate. It's not a problem that it takes
+   * time to propagate because in the real world because 'changed' will be
+   * emitted after the read function returns
+   */
+  g_usleep (10000);
+
   string = g_settings_get_string (settings, "string");
   g_assert_cmpstr (string, ==, "Hello world");
   g_free (string);
 
-
   /* Change the type of a key */
   g_settings_set_int (settings, "int32", 666);
 
-  if (reg_open_key ("tests\\storage", &hpath))
+  if (reg_open_path ("tests\\storage", &hpath))
     {
      LONG result = RegSetValueExA (hpath, "int32", 0, REG_SZ,
                                  "I am not a number!!", 20);
@@ -208,6 +254,7 @@ breakage_test (gconstpointer user_data)
     }
   RegCloseKey (hpath);
 
+  g_usleep (10000);
   int32 = g_settings_get_int (settings, "int32");
   g_assert (int32 == 55);
 
@@ -215,34 +262,59 @@ breakage_test (gconstpointer user_data)
   /* Break a literal */
   g_settings_set (settings, "box", "(iii)", 11, 19, 86);
 
-  if (reg_open_key ("tests\\storage", &hpath))
+  if (reg_open_path ("tests\\storage", &hpath))
     {
      LONG result = RegSetValueExA (hpath, "box", 0, REG_SZ,
-                                 "6%^*$£ Ésta es la GVáriant la más peor ^$^&*", 46);
+                                 "£6%^*$£ Ésta GVáriant es la peor ^$^&*", 46);
      if (result != ERROR_SUCCESS)
        g_warning_win32_error (result, "Error breaking 'box'");
     }
   RegCloseKey (hpath);
 
+  g_usleep (10000);
+
   g_settings_get (settings, "box", "(iii)", &x, &y, &z);
   g_assert (x==20 && y==30 && z==30);
 
+
+  /* Set a string to 0 length - this needs special handling to be treated as ""
+   * rather than NULL */
+  g_settings_set_string (settings, "string", "");
+
+  if (reg_open_path ("tests\\storage", &hpath))
+    {
+     LONG result = RegSetValueExA (hpath, "string", 0, REG_SZ, "", 0);
+     if (result != ERROR_SUCCESS)
+       g_warning_win32_error (result, "Error breaking 'box'");
+    }
+  RegCloseKey (hpath);
+
+  g_usleep (10000);
+
+  g_assert_cmpstr (g_settings_get_string (settings, "string"), ==, "");
+
   g_object_unref (settings);
+
 
   /* Delete an entire key */
   settings = g_settings_new_with_path ("org.gsettings.test.storage-test.long-path",
                                        "/tests/storage/long-path/");
   g_settings_set (settings, "marker", "ms", "maybe... maybe not");
 
-  if (reg_open_key ("tests\\storage", &hpath))
+  if (reg_open_path ("tests\\storage", &hpath))
     {
      LONG result = RegDeleteKeyA (hpath, "long-path");
      if (result != ERROR_SUCCESS)
        g_warning_win32_error (result, "Error breaking 'long-path'");
     }
+  RegCloseKey (hpath);
 
+  g_usleep (10000);
   g_settings_get (settings, "marker", "ms", &string);
-  g_assert (string == NULL);
+
+  g_assert_cmpstr (string, ==, NULL);
+
+  g_object_unref (settings);
 };
 
 
@@ -255,6 +327,7 @@ main (int argc, char **argv)
   g_test_add_data_func ("/gsettings/Simple Types", NULL, simple_test);
   g_test_add_data_func ("/gsettings/Hard Types", NULL, hard_test);
   g_test_add_data_func ("/gsettings/Complex Types", NULL, complex_test);
+  g_test_add_data_func ("/gsettings/Delay apply", NULL, delay_apply_test);
   g_test_add_data_func ("/gsettings/Relocation", NULL, relocation_test);
   g_test_add_data_func ("/gsettings/Breakage", NULL, breakage_test);
 
@@ -262,7 +335,7 @@ main (int argc, char **argv)
 
   /* If all the tests pass, now we delete the evidence */
   HKEY hparent;
-  if (reg_open_key (NULL, &hparent))
+  if (reg_open_path (NULL, &hparent))
     {
       const char *subpath = "tests\\storage";
       LONG result = SHDeleteKey (hparent, subpath);
