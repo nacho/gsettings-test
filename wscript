@@ -31,7 +31,7 @@ def configure(conf):
 	conf.env['LINKFLAGS'] = '-lshlwapi'
 
 def build(bld):
-	app = bld (features = 'cprogram glib2',
+	app = bld (features = 'c cprogram glib2',
 	           packages = 'gtk+-2.0',
 	           target = 'gsettings-test',
 	           uselib = 'GTK GLIB GIO',
@@ -41,7 +41,7 @@ def build(bld):
 	# FIXME: enums namespace file gets generated twice, which causes some errors ..
 	# also the schema and enums files get installed and uninstalled twice ..
 
-	storage_test = bld (features = 'cprogram glib2',
+	storage_test = bld (features = 'c cprogram glib2',
 	                    packages = 'gtk+-2.0',
 	                    target = 'storage-test',
 	                    uselib = 'GTK GLIB GIO',
@@ -50,13 +50,13 @@ def build(bld):
 	                    settings_schema_files = ['schemas/org.gsettings.test.storage-test.gschema.xml'],
 	                    source = ['src/storage-test.c'])
 
-	notify_test = bld (features = 'cprogram glib2',
+	notify_test = bld (features = 'c cprogram glib2',
 	                   packages = 'gtk+-2.0',
 	                   target = 'notify-test',
 	                   uselib = 'GTK GLIB GIO',
 	                   source = ['src/notify-test.c'])
 
-	spped_test = bld (features = 'cprogram glib2',
+	spped_test = bld (features = 'c cprogram glib2',
 	                  packages = 'gtk+-2.0',
 	                  target = 'speed-test',
 	                  uselib = 'GTK GLIB GIO',
