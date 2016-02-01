@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <ModExportCFlags>_GLIB_EXTERN=__declspec(dllexport)extern</ModExportCFlags>
+    <PythonPath>c:\python27</PythonPath>
+    <PerlPath>c:\perl</PerlPath>
+    <UnpackedDir>$(SolutionDir)build\unpacked</UnpackedDir>
+    <UnpackedServerDir Condition="'$(Platform)'=='Win32'">$(UnpackedDir)\server\x86\$(Configuration)</UnpackedServerDir>
+    <UnpackedServerDir Condition="'$(Platform)'=='x64'">$(UnpackedDir)\server\x64\$(Configuration)</UnpackedServerDir>
+    <UnpackedClientDir Condition="'$(Platform)'=='Win32'">$(UnpackedDir)\client\x86\$(Configuration)</UnpackedClientDir>
+    <UnpackedClientDir Condition="'$(Platform)'=='x64'">$(UnpackedDir)\client\x64\$(Configuration)</UnpackedClientDir>
+    <GtkBinariesDir>c:\gtk-build\gtk</GtkBinariesDir>
+    <MkEnumsCmd>$(PerlPath)\bin\perl.exe $(GtkBinariesDir)\$(Platform)\bin\glib-mkenums</MkEnumsCmd>
+    <GLibCompileSchemas>$(GtkBinariesDir)\$(Platform)\bin\glib-compile-schemas.exe</GLibCompileSchemas>
+    <GLibIncludeDirectories>$(GtkBinariesDir)\$(Platform)\include\glib-2.0;$(GtkBinariesDir)\$(Platform)\include\gio-win32-2.0;$(GtkBinariesDir)\$(Platform)\include;$(GtkBinariesDir)\$(Platform)\lib\glib-2.0\include</GLibIncludeDirectories>
+    <GLibLibraryDirectories>$(GtkBinariesDir)\$(Platform)\lib</GLibLibraryDirectories>
+  </PropertyGroup>
+  <ItemGroup>
+    <BuildMacro Include="ModExportCFlags">
+      <Value>$(ModExportCFlags)</Value>
+    </BuildMacro>
+    <BuildMacro Include="PythonPath">
+      <Value>$(PythonPath)</Value>
+    </BuildMacro>
+    <BuildMacro Include="PerlPath">
+      <Value>$(PerlPath)</Value>
+    </BuildMacro>
+    <BuildMacro Include="MkEnumsCmd">
+      <Value>$(MkEnumsCmd)</Value>
+    </BuildMacro>
+  </ItemGroup>
+</Project>

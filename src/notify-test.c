@@ -18,7 +18,6 @@
 #include <windows.h>
 #include <shlwapi.h>
 
-
 /* g_warning including a windows error message. */
 static void
 g_warning_win32_error (DWORD result_code,
@@ -71,13 +70,12 @@ main_iterate ()
    * change notification, to catch if we are getting more than one when only
    * one thing has changed.
    */
-  for (i=0; i<1000; i++)
+  for (i = 0; i < 1000; i++)
     {
       g_main_context_iteration (NULL, FALSE);
       g_usleep (100);
     }
 }
-
 
 typedef struct {
   gboolean  change_flag;
@@ -102,8 +100,6 @@ single_change_handler (GSettings   *settings,
 static void
 basic_test (gconstpointer    test_data)
 {
-  HKEY   root_key;
-  LONG   result;
   Change change;
 
   GMainLoop *main_loop = g_main_loop_new (NULL, FALSE);
@@ -159,7 +155,7 @@ basic_test (gconstpointer    test_data)
 
   g_object_unref (settings);
   g_main_loop_unref (main_loop);
-};
+}
 
 static void
 manual_test (gconstpointer test_data)
@@ -167,8 +163,6 @@ manual_test (gconstpointer test_data)
   HKEY       hpath;
   LONG       result;
   Change     change;
-
-  gint       i;
   gchar     *string;
   gdouble    double_value;
 
@@ -222,13 +216,13 @@ manual_test (gconstpointer test_data)
   if (reg_open_path ("tests\\storage", &hpath))
     {
       HKEY hsubpath1, hsubpath2, hsubpath3;
-      result = RegCreateKeyEx (hpath, "a", 0, NULL, 0, KEY_ALL_ACCESS, NULL, &hsubpath1, NULL);
+      result = RegCreateKeyEx (hpath, L"a", 0, NULL, 0, KEY_ALL_ACCESS, NULL, &hsubpath1, NULL);
       g_assert_no_win32_error (result, "Error ceating a path");
-      result = RegCreateKeyEx (hsubpath1, "twisty", 0, NULL, 0, KEY_ALL_ACCESS, NULL, &hsubpath2, NULL);
+      result = RegCreateKeyEx (hsubpath1, L"twisty", 0, NULL, 0, KEY_ALL_ACCESS, NULL, &hsubpath2, NULL);
       g_assert_no_win32_error (result, "Error creating a path");
 
       /* A key that's not in the schema */
-      result = RegCreateKeyEx (hsubpath2, "snake", 0, NULL, 0, KEY_ALL_ACCESS, NULL, &hsubpath3, NULL);
+      result = RegCreateKeyEx (hsubpath2, L"snake", 0, NULL, 0, KEY_ALL_ACCESS, NULL, &hsubpath3, NULL);
       g_assert_no_win32_error (result, "Error creating a path");
 
       RegCloseKey (hsubpath3);
@@ -241,7 +235,7 @@ manual_test (gconstpointer test_data)
       g_settings_set (s1, "marker", "ms", "lamp");
 
       /* Now delete the whole thing */
-      SHDeleteKey (hpath, "a");
+      SHDeleteKey (hpath, L"a");
 
       RegCloseKey (hpath);
     }
@@ -298,9 +292,7 @@ nesting_test (gconstpointer test_data)
   HKEY       hpath;
   LONG       result;
   Change     change;
-
   gchar     *string;
-
   GMainLoop *main_loop = g_main_loop_new (NULL, FALSE);
   GSettings *s1, *s2, *s3;
   
@@ -336,27 +328,19 @@ nesting_test (gconstpointer test_data)
   g_main_loop_unref (main_loop);
 }
 
-
 static void
 stress_test (gconstpointer test_data)
 {
-  HKEY       hpath;
-  LONG       result;
-  Change     change;
-
-  gchar     *string;
   gint       i, j;
-
   GMainLoop *main_loop = g_main_loop_new (NULL, FALSE);
   GSettings *settings[100], *s0;
 
-
   /* 63 is the maximum but this shouldn't fail, because the backend shouldn't
    * watch the same prefix twice */
-  for (i=0; i<100; i++)
+  for (i = 0; i < 100; i++)
     settings[i] = g_settings_new ("org.gsettings.test.storage-test");
 
-  for (i=0; i<1000; i++)
+  for (i = 0; i < 1000; i++)
     {
       j = g_test_rand_int_range (0, 62);
       g_settings_set_int (settings[j], "a-5", i);
@@ -372,7 +356,7 @@ stress_test (gconstpointer test_data)
 
   s0 = g_settings_new ("org.gsettings.test.storage-test");
 
-  for (i=0; i<62; i++)
+  for (i = 0; i < 62; i++)
     {
       char buffer[256];
       g_snprintf (buffer, 255, "/tests/storage/prefix%i/", i);
@@ -380,7 +364,7 @@ stress_test (gconstpointer test_data)
                                               buffer);
     }
 
-  for (i=0; i<1000; i++)
+  for (i = 0; i < 1000; i++)
     {
       const char *string,
                  *nonsense[10] = {
@@ -395,20 +379,18 @@ stress_test (gconstpointer test_data)
     }
 
   g_object_unref (s0);
-  for (i=0; i<62; i++)
+  for (i = 0; i < 62; i++)
       g_object_unref (settings[i]);
   
   g_main_loop_unref (main_loop);
 }
 
-
-
 int
 main (int argc, char **argv)
 {
+  HKEY hparent;
   gint result;
 
-  g_type_init ();
   g_test_init (&argc, &argv, NULL);
 
   g_test_add_data_func ("/gsettings/notify/Basic", NULL, basic_test);
@@ -418,11 +400,11 @@ main (int argc, char **argv)
   g_test_add_data_func ("/gsettings/notify/Stress", NULL, stress_test);
 
   result = g_test_run();
+
   /* If all the tests pass, now we delete the evidence */
-  HKEY hparent;
   if (reg_open_path (NULL, &hparent))
     {
-      const char *subpath = "tests\\storage";
+      wchar_t *subpath = L"tests\\storage";
       LONG result = SHDeleteKey (hparent, subpath);
       if (result != ERROR_SUCCESS)
         {

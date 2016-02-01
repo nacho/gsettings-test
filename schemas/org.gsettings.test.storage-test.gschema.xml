@@ -32,10 +32,6 @@
       <summary>delicious</summary>
     </key>
 
-    <key name="cheese" enum="org.gsettings.test.CheeseType">
-      <default>'shropshire-blue'</default>
-    </key>
-
     <!-- Complex types -->
 
     <key name="box" type="(iii)">

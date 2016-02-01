@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Configuration">
+    <PlatformToolset>v120</PlatformToolset>
+    <ConfigurationType>Application</ConfigurationType>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{AA370BFA-E69B-432B-ADAF-6B4F0107BC25}</ProjectGuid>
+    <RootNamespace>install</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  <Import Project="$(SolutionDir)\build-defines.props" />
+  <ItemGroup>
+    <None Include="$(GtkBinariesDir)\$(Platform)\bin\*.pdb" />
+    <None Include="$(GtkBinariesDir)\$(Platform)\bin\*.dll" />
+    <None Include="$(GtkBinariesDir)\$(Platform)\bin\gspawn-win$(PlatformArchitecture)-helper.exe" />
+    <None Include="$(GtkBinariesDir)\$(Platform)\bin\gspawn-win$(PlatformArchitecture)-helper-console.exe" />
+    <None Include="$(GtkBinariesDir)\$(Platform)\bin\glib-compile-schemas.exe" />
+    <Schemas Include="$(SolutionDir)schemas\*.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="notify-test.vcxproj">
+      <Project>{96926372-8250-45E0-B401-D68DA0F6B3A4}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="Build">
+    <Copy SourceFiles="@(None)" DestinationFolder="$(UnpackedServerDir)\bin" />
+    <Copy SourceFiles="@(Schemas)" DestinationFolder="$(UnpackedServerDir)\share\glib-2.0\schemas\" />
+    <Exec Command="$(GLibCompileSchemas) $(UnpackedServerDir)\share\glib-2.0\schemas" />
+  </Target>
+</Project>
