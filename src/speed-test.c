@@ -39,8 +39,7 @@ g_warning_win32_error (DWORD result_code,
   FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM, NULL, result_code, 0, (LPTSTR)(win32_message+pos),
                 1023 - pos, NULL);
   g_warning (win32_message);
-};
-
+}
 
 static gboolean
 reg_open_path (gchar *key_name, HKEY *hkey)
@@ -58,10 +57,8 @@ reg_open_path (gchar *key_name, HKEY *hkey)
   return (result == ERROR_SUCCESS);
 }
 
-
-
 static void
-basic_test (gpointer *data)
+basic_test(gconstpointer *data)
 {
   GTimer *timer = g_timer_new ();
   gdouble time;
@@ -104,7 +101,6 @@ main (int argc, char **argv)
   gint result;
   HKEY hparent;
 
-  g_type_init ();
   g_test_init (&argc, &argv, NULL);
 
   g_test_add_data_func ("/gsettings/speed/Basic", NULL, basic_test);
@@ -114,16 +110,17 @@ main (int argc, char **argv)
   /* If all the tests pass, now we delete the evidence */
   if (reg_open_path (NULL, &hparent))
     {
-      const char *subpath = "tests\\storage";
-      LONG result = SHDeleteKey (hparent, subpath);
+      wchar_t *subpath = L"tests\\storage";
+      LONG result = SHDeleteKeyW (hparent, subpath);
       if (result != ERROR_SUCCESS)
         {
           g_warning_win32_error (result, "Error deleting test keys - couldn't delete %s:", 
                                  subpath);
           return 1;
         }
+      
+      RegCloseKey (hparent);
     }
-  RegCloseKey (hparent);
 
   return result;
-};
+}

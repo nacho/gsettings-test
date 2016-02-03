@@ -105,7 +105,7 @@ simple_test (gconstpointer user_data)
   g_free (string);
 
   g_object_unref (settings);
-};
+}
 
 /* Things that don't map naturally to registry types */
 static void
@@ -121,7 +121,7 @@ hard_test (gconstpointer user_data)
   g_assert (value == SHROPSHIRE_BLUE);
 
   g_object_unref (settings);
-};
+}
 
 /* Things that don't map naturally to anything */
 static void
@@ -144,7 +144,7 @@ complex_test (gconstpointer user_data)
   g_variant_unref (variant);
 
   g_object_unref (settings);
-};
+}
 
 /* I don't see how this could not work, but you know ... */
 static void
@@ -178,16 +178,13 @@ delay_apply_test (gconstpointer user_data)
   g_settings_reset (settings, "string");
 
   g_object_unref (settings);
-};
-
-
+}
 
 /* Things that don't map naturally to anything */
 static void
 relocation_test (gconstpointer user_data)
 {
   GSettings *settings_1, *settings_2;
-  GVariant  *variant;
   gchar *string;
 
   settings_1 = g_settings_new_with_path ("org.gsettings.test.storage-test.long-path",
@@ -203,8 +200,7 @@ relocation_test (gconstpointer user_data)
 
   g_object_unref (settings_2);
   g_object_unref (settings_1);
-};
-
+}
 
 /* Break things as a dumb user might */
 static void
@@ -315,13 +311,11 @@ breakage_test (gconstpointer user_data)
   g_assert_cmpstr (string, ==, NULL);
 
   g_object_unref (settings);
-};
-
+}
 
 int
 main (int argc, char **argv)
 {
-  g_type_init ();
   g_test_init (&argc, &argv, NULL);
 
   g_test_add_data_func ("/gsettings/Simple Types", NULL, simple_test);
@@ -337,16 +331,17 @@ main (int argc, char **argv)
   HKEY hparent;
   if (reg_open_path (NULL, &hparent))
     {
-      const char *subpath = "tests\\storage";
-      LONG result = SHDeleteKey (hparent, subpath);
+      wchar_t *subpath = L"tests\\storage";
+      LONG result = SHDeleteKeyW (hparent, subpath);
       if (result != ERROR_SUCCESS)
         {
           g_warning_win32_error (result, "Error deleting test keys - couldn't delete %s:", 
                                  subpath);
           return 1;
         }
+
+      RegCloseKey (hparent);
     }
-  RegCloseKey (hparent);
 
   return test_result;
 };
