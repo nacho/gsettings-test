@@ -175,20 +175,35 @@ manual_test (gconstpointer test_data)
   /* Delete a value */
   change.change_flag = FALSE;
   g_settings_set_string (settings, "string", "I'm getting deleted!");
+
+  while (change.change_flag == FALSE)
+    main_iterate ();
+
+  g_assert_cmpstr (change.key, ==, "string");
+  string = g_settings_get_string (settings, "string");
+  g_assert_cmpstr(string, == , "I'm getting deleted!");
+  g_free (string);
+  g_free (change.key);
+
+  /* We should receive at this point a changed signal if the key
+   * is externally changed
+   */
+  change.change_flag = FALSE;
   if (reg_open_path ("tests\\storage", &hpath))
     {
       result = RegDeleteValueA (hpath, "string");
       g_assert_no_win32_error (result, "Error deleting value 'string'");
     }
   RegCloseKey (hpath);
+
   while (change.change_flag == FALSE)
-    main_iterate ();
-  g_usleep (10000);
-  g_assert_cmpstr (change.key, ==, "string");
-  string = g_settings_get_string (settings, "string");
-  g_assert_cmpstr (string, ==, "Hello world");
-  g_free (string);
-  g_free (change.key);
+    main_iterate();
+
+  g_assert_cmpstr(change.key, == , "string");
+  string = g_settings_get_string(settings, "string");
+  g_assert_cmpstr(string, == , "Hello world");
+  g_free(string);
+  g_free(change.key);
 
   /* Add a value */
   g_settings_reset (settings, "double");
