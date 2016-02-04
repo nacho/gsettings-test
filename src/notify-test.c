@@ -39,7 +39,7 @@ g_warning_win32_error (DWORD result_code,
   FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM, NULL, result_code, 0, (LPTSTR)(win32_message+pos),
                 1023 - pos, NULL);
   g_warning (win32_message);
-};
+}
 
 #define g_assert_no_win32_error(_r, _m)  G_STMT_START \
   if ((_r) != ERROR_SUCCESS)                         \
@@ -50,15 +50,20 @@ static gboolean
 reg_open_path (gchar *key_name, HKEY *hkey)
 {
   gchar *path;
-  LONG   result;
+  gunichar2 *pathw;
+  LONG result;
  
   path = g_build_path ("\\", "Software\\GSettings", key_name, NULL);
+  pathw = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
 
-  result = RegOpenKeyExA (HKEY_CURRENT_USER, path, 0, KEY_ALL_ACCESS, hkey);
+  result = RegOpenKeyExW (HKEY_CURRENT_USER, pathw, 0, KEY_ALL_ACCESS, hkey);
+  g_free (pathw);
+
   if (result != ERROR_SUCCESS)
     g_warning_win32_error (result, "Error opening registry path %s", path);
 
   g_free (path);
+
   return (result == ERROR_SUCCESS);
 }
 
@@ -84,8 +89,8 @@ typedef struct {
 
 static void
 single_change_handler (GSettings   *settings,
-                const gchar *key,
-                Change      *change)
+                       const gchar *key,
+                       Change      *change)
 {
   //printf ("Got change: %s\n", key); fflush (stdout);
 
@@ -191,7 +196,7 @@ manual_test (gconstpointer test_data)
   change.change_flag = FALSE;
   if (reg_open_path ("tests\\storage", &hpath))
     {
-      result = RegDeleteValueA (hpath, "string");
+      result = RegDeleteValueW (hpath, L"string");
       g_assert_no_win32_error (result, "Error deleting value 'string'");
     }
   RegCloseKey (hpath);
@@ -210,11 +215,13 @@ manual_test (gconstpointer test_data)
   change.change_flag = FALSE;
   if (reg_open_path ("tests\\storage", &hpath))
     {
-      result = RegSetValueExA (hpath, "double", 0, REG_SZ, "2.99e8", 7);
+      result = RegSetValueExW (hpath, L"double", 0, REG_SZ, "2.99e8", 7);
       g_assert_no_win32_error (result, "Error setting value 'double'");
+      RegCloseKey (hpath);
     }
-  RegCloseKey (hpath);
-  main_iterate ();
+
+  while (change.change_flag == FALSE)
+    main_iterate ();
   g_assert (change.change_flag == TRUE);
   g_assert_cmpstr (change.key, ==, "double");
   double_value = g_settings_get_double (settings, "double");
@@ -231,13 +238,13 @@ manual_test (gconstpointer test_data)
   if (reg_open_path ("tests\\storage", &hpath))
     {
       HKEY hsubpath1, hsubpath2, hsubpath3;
-      result = RegCreateKeyEx (hpath, L"a", 0, NULL, 0, KEY_ALL_ACCESS, NULL, &hsubpath1, NULL);
+      result = RegCreateKeyExW (hpath, L"a", 0, NULL, 0, KEY_ALL_ACCESS, NULL, &hsubpath1, NULL);
       g_assert_no_win32_error (result, "Error ceating a path");
-      result = RegCreateKeyEx (hsubpath1, L"twisty", 0, NULL, 0, KEY_ALL_ACCESS, NULL, &hsubpath2, NULL);
+      result = RegCreateKeyExW (hsubpath1, L"twisty", 0, NULL, 0, KEY_ALL_ACCESS, NULL, &hsubpath2, NULL);
       g_assert_no_win32_error (result, "Error creating a path");
 
       /* A key that's not in the schema */
-      result = RegCreateKeyEx (hsubpath2, L"snake", 0, NULL, 0, KEY_ALL_ACCESS, NULL, &hsubpath3, NULL);
+      result = RegCreateKeyExW (hsubpath2, L"snake", 0, NULL, 0, KEY_ALL_ACCESS, NULL, &hsubpath3, NULL);
       g_assert_no_win32_error (result, "Error creating a path");
 
       RegCloseKey (hsubpath3);
@@ -250,7 +257,7 @@ manual_test (gconstpointer test_data)
       g_settings_set (s1, "marker", "ms", "lamp");
 
       /* Now delete the whole thing */
-      SHDeleteKey (hpath, L"a");
+      SHDeleteKeyW (hpath, L"a");
 
       RegCloseKey (hpath);
     }
@@ -287,12 +294,12 @@ breakage_test (gconstpointer test_data)
   change.change_flag = FALSE;
   if (reg_open_path ("tests\\storage", &hpath))
     {
-      result = RegSetValueExA (hpath, "intruder", 0, REG_SZ, "oh no", 6);
+      result = RegSetValueExW (hpath, L"intruder", 0, REG_SZ, "oh no", 6);
       if (result != ERROR_SUCCESS)
         g_warning_win32_error (result, "Error setting value 'intruder'");
     }
   RegCloseKey (hpath);
-  for (i=0; i<100; i++)
+  for (i = 0; i < 100; i++)
     main_iterate ();
   g_assert (change.change_flag == FALSE);
 
@@ -324,11 +331,11 @@ nesting_test (gconstpointer test_data)
  
   if (reg_open_path ("tests\\storage\\nested\\even\\further", &hpath))
     {
-      result = RegSetValueExA (hpath, "marker", 0, REG_SZ, "\"tasty food\"", 12);
+      result = RegSetValueExW (hpath, L"marker", 0, REG_SZ, "\"tasty food\"", 12);
       if (result != ERROR_SUCCESS)
         g_warning_win32_error (result, "Error setting value 'intruder'");
+      RegCloseKey (hpath);
     }
-  RegCloseKey (hpath);
 
   g_usleep (10000);
 
@@ -395,7 +402,7 @@ stress_test (gconstpointer test_data)
 
   g_object_unref (s0);
   for (i = 0; i < 62; i++)
-      g_object_unref (settings[i]);
+    g_object_unref (settings[i]);
   
   g_main_loop_unref (main_loop);
 }
@@ -433,4 +440,4 @@ main (int argc, char **argv)
   delete_old_keys();
 
   return result;
-};
+}
