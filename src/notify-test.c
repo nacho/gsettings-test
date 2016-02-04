@@ -400,13 +400,27 @@ stress_test (gconstpointer test_data)
   g_main_loop_unref (main_loop);
 }
 
+static void
+delete_old_keys (void)
+{
+  HKEY hparent;
+
+  /* If all the tests pass, now we delete the evidence */
+  if (reg_open_path (NULL, &hparent))
+    {
+      SHDeleteKeyW(hparent, L"tests\\storage");
+      RegCloseKey (hparent);
+    }
+}
+
 int
 main (int argc, char **argv)
 {
-  HKEY hparent;
   gint result;
 
   g_test_init (&argc, &argv, NULL);
+
+  delete_old_keys();
 
   g_test_add_data_func ("/gsettings/notify/Basic", NULL, basic_test);
   g_test_add_data_func ("/gsettings/notify/Manual", NULL, manual_test);
@@ -416,19 +430,7 @@ main (int argc, char **argv)
 
   result = g_test_run();
 
-  /* If all the tests pass, now we delete the evidence */
-  if (reg_open_path (NULL, &hparent))
-    {
-      wchar_t *subpath = L"tests\\storage";
-      LONG result = SHDeleteKey (hparent, subpath);
-      if (result != ERROR_SUCCESS)
-        {
-          g_warning_win32_error (result, "Error deleting test keys - couldn't delete %s:", 
-                                 subpath);
-          return 1;
-        }
-    }
-  RegCloseKey (hparent);
+  delete_old_keys();
 
   return result;
 };
