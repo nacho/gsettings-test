@@ -40,24 +40,28 @@ g_warning_win32_error (DWORD result_code,
   FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM, NULL, result_code, 0, (LPTSTR)(win32_message+pos),
                 1023 - pos, NULL);
   g_warning (win32_message);
-};
+}
 
 static gboolean
 reg_open_path (gchar *key_name, HKEY *hkey)
 {
   gchar *path;
-  LONG   result;
+  gunichar2 *pathw;
+  LONG result;
  
   path = g_build_path ("\\", "Software\\GSettings", key_name, NULL);
+  pathw = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
 
-  result = RegOpenKeyExA (HKEY_CURRENT_USER, path, 0, KEY_ALL_ACCESS, hkey);
+  result = RegOpenKeyExW (HKEY_CURRENT_USER, pathw, 0, KEY_ALL_ACCESS, hkey);
+  g_free (pathw);
+
   if (result != ERROR_SUCCESS)
     g_warning_win32_error (result, "Error opening registry path %s", path);
 
   g_free (path);
+
   return (result == ERROR_SUCCESS);
 }
-
 
 #define TEST_TYPE(_s, _t, _f, _k, _d, _i)  { \
   _t value;                                  \
@@ -219,11 +223,12 @@ breakage_test (gconstpointer user_data)
 
   if (reg_open_path ("tests\\storage", &hpath))
     {
-     LONG result = RegDeleteValueA (hpath, "string");
-     if (result != ERROR_SUCCESS)
-       g_warning_win32_error (result, "Error deleting 'string'");
+      LONG result = RegDeleteValueW (hpath, L"string");
+      if (result != ERROR_SUCCESS)
+        g_warning_win32_error (result, "Error deleting 'string'");
+
+      RegCloseKey (hpath);
     }
-  RegCloseKey (hpath);
 
   /* Give the change a chance to propagate. It's not a problem that it takes
    * time to propagate because in the real world because 'changed' will be
@@ -240,35 +245,35 @@ breakage_test (gconstpointer user_data)
 
   if (reg_open_path ("tests\\storage", &hpath))
     {
-     LONG result = RegSetValueExA (hpath, "int32", 0, REG_SZ,
-                                 "I am not a number!!", 20);
-     if (result != ERROR_SUCCESS)
-       g_warning_win32_error (result, "Error breaking 'int32'");
+      LONG result = RegSetValueExW (hpath, L"int32", 0, REG_SZ,
+                                    "I am not a number!!", 20);
+      if (result != ERROR_SUCCESS)
+        g_warning_win32_error (result, "Error breaking 'int32'");
+  
+      RegCloseKey (hpath);
     }
-  RegCloseKey (hpath);
 
   g_usleep (10000);
   int32 = g_settings_get_int (settings, "int32");
   g_assert (int32 == 55);
-
 
   /* Break a literal */
   g_settings_set (settings, "box", "(iii)", 11, 19, 86);
 
   if (reg_open_path ("tests\\storage", &hpath))
     {
-     LONG result = RegSetValueExA (hpath, "box", 0, REG_SZ,
-                                 "£6%^*$£ Ésta GVáriant es la peor ^$^&*", 46);
-     if (result != ERROR_SUCCESS)
-       g_warning_win32_error (result, "Error breaking 'box'");
+      LONG result = RegSetValueExW (hpath, L"box", 0, REG_SZ,
+                                    "£6%^*$£ Ésta GVáriant es la peor ^$^&*", 46);
+      if (result != ERROR_SUCCESS)
+        g_warning_win32_error (result, "Error breaking 'box'");
+  
+      RegCloseKey (hpath);
     }
-  RegCloseKey (hpath);
 
   g_usleep (10000);
 
   g_settings_get (settings, "box", "(iii)", &x, &y, &z);
   g_assert (x==20 && y==30 && z==30);
-
 
   /* Set a string to 0 length - this needs special handling to be treated as ""
    * rather than NULL */
@@ -276,11 +281,12 @@ breakage_test (gconstpointer user_data)
 
   if (reg_open_path ("tests\\storage", &hpath))
     {
-     LONG result = RegSetValueExA (hpath, "string", 0, REG_SZ, "", 0);
-     if (result != ERROR_SUCCESS)
-       g_warning_win32_error (result, "Error breaking 'box'");
+      LONG result = RegSetValueExW (hpath, L"string", 0, REG_SZ, "", 0);
+      if (result != ERROR_SUCCESS)
+        g_warning_win32_error (result, "Error breaking 'box'");
+  
+      RegCloseKey (hpath);
     }
-  RegCloseKey (hpath);
 
   g_usleep (10000);
 
@@ -296,11 +302,12 @@ breakage_test (gconstpointer user_data)
 
   if (reg_open_path ("tests\\storage", &hpath))
     {
-     LONG result = RegDeleteKeyA (hpath, "long-path");
-     if (result != ERROR_SUCCESS)
-       g_warning_win32_error (result, "Error breaking 'long-path'");
+      LONG result = RegDeleteKeyW (hpath, L"long-path");
+      if (result != ERROR_SUCCESS)
+        g_warning_win32_error (result, "Error breaking 'long-path'");
+    
+      RegCloseKey (hpath);
     }
-  RegCloseKey (hpath);
 
   g_usleep (10000);
   g_settings_get (settings, "marker", "ms", &string);
@@ -310,10 +317,27 @@ breakage_test (gconstpointer user_data)
   g_object_unref (settings);
 }
 
+static void
+delete_old_keys (void)
+{
+  HKEY hparent;
+
+  /* If all the tests pass, now we delete the evidence */
+  if (reg_open_path (NULL, &hparent))
+    {
+      SHDeleteKeyW(hparent, L"tests\\storage");
+      RegCloseKey (hparent);
+    }
+}
+
 int
 main (int argc, char **argv)
 {
+  gint test_result;
+
   g_test_init (&argc, &argv, NULL);
+
+  delete_old_keys ();
 
   g_test_add_data_func ("/gsettings/Simple Types", NULL, simple_test);
   g_test_add_data_func ("/gsettings/Hard Types", NULL, hard_test);
@@ -322,23 +346,9 @@ main (int argc, char **argv)
   g_test_add_data_func ("/gsettings/Relocation", NULL, relocation_test);
   g_test_add_data_func ("/gsettings/Breakage", NULL, breakage_test);
 
-  gint test_result = g_test_run();
+  test_result = g_test_run ();
 
-  /* If all the tests pass, now we delete the evidence */
-  HKEY hparent;
-  if (reg_open_path (NULL, &hparent))
-    {
-      wchar_t *subpath = L"tests\\storage";
-      LONG result = SHDeleteKeyW (hparent, subpath);
-      if (result != ERROR_SUCCESS)
-        {
-          g_warning_win32_error (result, "Error deleting test keys - couldn't delete %s:", 
-                                 subpath);
-          return 1;
-        }
-
-      RegCloseKey (hparent);
-    }
+  delete_old_keys ();
 
   return test_result;
-};
+}
