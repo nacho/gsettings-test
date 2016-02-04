@@ -18,36 +18,37 @@
 #include <windows.h>
 #include <shlwapi.h>
 
-/* g_warning including a windows error message. */
 static void
-g_warning_win32_error (DWORD result_code,
+g_warning_win32_error (DWORD        result_code,
                        const gchar *format,
-                      ...)
+                       ...)
 {
   va_list va;
-  gint pos;
-  gchar win32_message[1024];
+  gchar *message;
+  gchar *win32_error;
+  gchar *win32_message;
 
-  if (result_code == 0)
-    result_code = GetLastError ();
+  g_return_if_fail (result_code != 0);
 
   va_start (va, format);
-  pos = g_vsnprintf (win32_message, 512, format, va);
+  message = g_strdup_vprintf (format, va);
+  win32_error = g_win32_error_message (result_code);
+  win32_message = g_strdup_printf ("%s: %s", message, win32_error);
+  g_free (message);
+  g_free (win32_error);
 
-  win32_message[pos++] = ':'; win32_message[pos++] = ' ';
-  
-  FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM, NULL, result_code, 0, (LPTSTR)(win32_message+pos),
-                1023 - pos, NULL);
-  g_warning (win32_message);
+  g_warning ("%s", win32_message);
+
+  g_free (win32_message);
 }
 
 #define g_assert_no_win32_error(_r, _m)  G_STMT_START \
   if ((_r) != ERROR_SUCCESS)                         \
     g_warning_win32_error ((_r), (_m));  G_STMT_END
 
-
 static gboolean
-reg_open_path (gchar *key_name, HKEY *hkey)
+reg_open_path (const gchar *key_name,
+               HKEY        *hkey)
 {
   gchar *path;
   gunichar2 *pathw;
@@ -71,6 +72,7 @@ static void
 main_iterate ()
 {
   gint i;
+
   /* We iterate the main loop for a while, even after we have received the
    * change notification, to catch if we are getting more than one when only
    * one thing has changed.
@@ -84,7 +86,7 @@ main_iterate ()
 
 typedef struct {
   gboolean  change_flag;
-  gchar    *key;
+  gchar *key;
 } Change;
 
 static void
@@ -103,16 +105,17 @@ single_change_handler (GSettings   *settings,
 }
 
 static void
-basic_test (gconstpointer    test_data)
+basic_test (gconstpointer test_data)
 {
   Change change;
-
-  GMainLoop *main_loop = g_main_loop_new (NULL, FALSE);
-  GSettings *settings = g_settings_new ("org.gsettings.test.storage-test");
-
+  GMainLoop *main_loop;
+  GSettings *settings;
   gchar *string;
-  gint   int32, x, y, z;
+  gint int32, x, y, z;
   gint64 int64;
+
+  main_loop = g_main_loop_new (NULL, FALSE);
+  settings = g_settings_new ("org.gsettings.test.storage-test");
 
   g_signal_connect (settings, "changed", G_CALLBACK (single_change_handler), &change);
 
@@ -146,7 +149,7 @@ basic_test (gconstpointer    test_data)
   main_iterate ();
   g_assert_cmpstr (change.key, ==, "box");
   g_settings_get (settings, "box", "(iii)", &x, &y, &z);
-  g_assert (x==-1 && y==99 && z==11111);
+  g_assert (x == -1 && y == 99 && z == 11111);
   g_free (change.key);
 
   /* Test resettting */
@@ -165,15 +168,16 @@ basic_test (gconstpointer    test_data)
 static void
 manual_test (gconstpointer test_data)
 {
-  HKEY       hpath;
-  LONG       result;
-  Change     change;
-  gchar     *string;
-  gdouble    double_value;
+  HKEY hpath;
+  LONG result;
+  Change change;
+  gchar *string;
+  gdouble double_value;
+  GMainLoop *main_loop;
+  GSettings *settings, *s1, *s2;
 
-  GMainLoop *main_loop = g_main_loop_new (NULL, FALSE);
-  GSettings *settings = g_settings_new ("org.gsettings.test.storage-test"),
-            *s1, *s2;
+  main_loop = g_main_loop_new (NULL, FALSE);
+  settings = g_settings_new ("org.gsettings.test.storage-test");
 
   g_signal_connect (settings, "changed", G_CALLBACK (single_change_handler), &change);
 
@@ -222,6 +226,7 @@ manual_test (gconstpointer test_data)
 
   while (change.change_flag == FALSE)
     main_iterate ();
+
   g_assert (change.change_flag == TRUE);
   g_assert_cmpstr (change.key, ==, "double");
   double_value = g_settings_get_double (settings, "double");
@@ -238,8 +243,10 @@ manual_test (gconstpointer test_data)
   if (reg_open_path ("tests\\storage", &hpath))
     {
       HKEY hsubpath1, hsubpath2, hsubpath3;
+
       result = RegCreateKeyExW (hpath, L"a", 0, NULL, 0, KEY_ALL_ACCESS, NULL, &hsubpath1, NULL);
       g_assert_no_win32_error (result, "Error ceating a path");
+
       result = RegCreateKeyExW (hsubpath1, L"twisty", 0, NULL, 0, KEY_ALL_ACCESS, NULL, &hsubpath2, NULL);
       g_assert_no_win32_error (result, "Error creating a path");
 
@@ -276,14 +283,15 @@ manual_test (gconstpointer test_data)
 static void
 breakage_test (gconstpointer test_data)
 {
-  HKEY       hpath;
-  LONG       result;
-  Change     change;
+  HKEY hpath;
+  LONG result;
+  Change change;
+  gint i;
+  GMainLoop *main_loop;
+  GSettings *settings;
 
-  gint       i;
-
-  GMainLoop *main_loop = g_main_loop_new (NULL, FALSE);
-  GSettings *settings = g_settings_new ("org.gsettings.test.storage-test");
+  main_loop = g_main_loop_new (NULL, FALSE);
+  settings = g_settings_new ("org.gsettings.test.storage-test");
 
   g_signal_connect (settings, "changed", G_CALLBACK (single_change_handler), &change);
 
@@ -297,10 +305,13 @@ breakage_test (gconstpointer test_data)
       result = RegSetValueExW (hpath, L"intruder", 0, REG_SZ, "oh no", 6);
       if (result != ERROR_SUCCESS)
         g_warning_win32_error (result, "Error setting value 'intruder'");
+      
+      RegCloseKey (hpath);
     }
-  RegCloseKey (hpath);
+
   for (i = 0; i < 100; i++)
     main_iterate ();
+
   g_assert (change.change_flag == FALSE);
 
   g_object_unref (settings);
@@ -311,12 +322,14 @@ breakage_test (gconstpointer test_data)
 static void
 nesting_test (gconstpointer test_data)
 {
-  HKEY       hpath;
-  LONG       result;
-  Change     change;
-  gchar     *string;
-  GMainLoop *main_loop = g_main_loop_new (NULL, FALSE);
+  HKEY hpath;
+  LONG result;
+  Change change;
+  gchar *string;
+  GMainLoop *main_loop;
   GSettings *s1, *s2, *s3;
+
+  main_loop = g_main_loop_new (NULL, FALSE);
   
   s1 = g_settings_new_with_path ("org.gsettings.test.storage-test.long-path",
                                  "/tests/storage/");
@@ -334,6 +347,7 @@ nesting_test (gconstpointer test_data)
       result = RegSetValueExW (hpath, L"marker", 0, REG_SZ, "\"tasty food\"", 12);
       if (result != ERROR_SUCCESS)
         g_warning_win32_error (result, "Error setting value 'intruder'");
+      
       RegCloseKey (hpath);
     }
 
@@ -353,9 +367,11 @@ nesting_test (gconstpointer test_data)
 static void
 stress_test (gconstpointer test_data)
 {
-  gint       i, j;
-  GMainLoop *main_loop = g_main_loop_new (NULL, FALSE);
+  GMainLoop *main_loop;
   GSettings *settings[100], *s0;
+  gint i, j;
+
+  main_loop = g_main_loop_new (NULL, FALSE);
 
   /* 63 is the maximum but this shouldn't fail, because the backend shouldn't
    * watch the same prefix twice */
@@ -427,7 +443,7 @@ main (int argc, char **argv)
 
   g_test_init (&argc, &argv, NULL);
 
-  delete_old_keys();
+  delete_old_keys ();
 
   g_test_add_data_func ("/gsettings/notify/Basic", NULL, basic_test);
   g_test_add_data_func ("/gsettings/notify/Manual", NULL, manual_test);
@@ -435,9 +451,9 @@ main (int argc, char **argv)
   g_test_add_data_func ("/gsettings/notify/Nesting", NULL, nesting_test);
   g_test_add_data_func ("/gsettings/notify/Stress", NULL, stress_test);
 
-  result = g_test_run();
+  result = g_test_run ();
 
-  delete_old_keys();
+  delete_old_keys ();
 
   return result;
 }

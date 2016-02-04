@@ -19,31 +19,33 @@
 #include <windows.h>
 #include <shlwapi.h>
 
-/* g_warning including a windows error message. */
 static void
-g_warning_win32_error (DWORD result_code,
+g_warning_win32_error (DWORD        result_code,
                        const gchar *format,
-                      ...)
+                       ...)
 {
   va_list va;
-  gint pos;
-  gchar win32_message[1024];
+  gchar *message;
+  gchar *win32_error;
+  gchar *win32_message;
 
-  if (result_code == 0)
-    result_code = GetLastError ();
+  g_return_if_fail (result_code != 0);
 
   va_start (va, format);
-  pos = g_vsnprintf (win32_message, 512, format, va);
+  message = g_strdup_vprintf (format, va);
+  win32_error = g_win32_error_message (result_code);
+  win32_message = g_strdup_printf ("%s: %s", message, win32_error);
+  g_free (message);
+  g_free (win32_error);
 
-  win32_message[pos++] = ':'; win32_message[pos++] = ' ';
-  
-  FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM, NULL, result_code, 0, (LPTSTR)(win32_message+pos),
-                1023 - pos, NULL);
-  g_warning (win32_message);
+  g_warning ("%s", win32_message);
+
+  g_free (win32_message);
 }
 
 static gboolean
-reg_open_path (gchar *key_name, HKEY *hkey)
+reg_open_path (const gchar *key_name,
+               HKEY        *hkey)
 {
   gchar *path;
   gunichar2 *pathw;
@@ -75,22 +77,21 @@ reg_open_path (gchar *key_name, HKEY *hkey)
   /* Set back again */                       \
   g_settings_set (_s, _k, _f, _d, NULL);    }
 
-
 static void
 simple_test (gconstpointer user_data)
 {
   GSettings *settings;
-  char *string;
+  gchar *string;
 
   settings = g_settings_new ("org.gsettings.test.storage-test");
 
   TEST_TYPE (settings, gboolean, "b", "bool", TRUE, FALSE);
 
-  TEST_TYPE (settings, gint32,   "i", "int32", 55, -999);
-  TEST_TYPE (settings, gint32,   "i", "a-5", 666666, 66666666);
+  TEST_TYPE (settings, gint32, "i", "int32", 55, -999);
+  TEST_TYPE (settings, gint32, "i", "a-5", 666666, 66666666);
 
-  TEST_TYPE (settings, guint64,  "x", "qword", 4398046511104, 31313131);
-  TEST_TYPE (settings, guint64,  "x", "qword", 4398046511104, -1);
+  TEST_TYPE (settings, guint64, "x", "qword", 4398046511104, 31313131);
+  TEST_TYPE (settings, guint64, "x", "qword", 4398046511104, -1);
 
   string = g_settings_get_string (settings, "string");
   g_assert_cmpstr (string, ==, "Hello world");
@@ -129,7 +130,7 @@ static void
 complex_test (gconstpointer user_data)
 {
   GSettings *settings;
-  GVariant  *variant;
+  GVariant *variant;
 
   settings = g_settings_new ("org.gsettings.test.storage-test");
 
@@ -152,7 +153,7 @@ static void
 delay_apply_test (gconstpointer user_data)
 {
   GSettings *settings;
-  gchar     *string;
+  gchar *string;
 
   settings = g_settings_new ("org.gsettings.test.storage-test");
   g_settings_delay (settings);
@@ -208,10 +209,10 @@ static void
 breakage_test (gconstpointer user_data)
 {
   GSettings *settings;
-  HKEY       hpath;
-  char      *string;
-  gint32     int32;
-  gint       x, y, z;
+  HKEY hpath;
+  gchar *string;
+  gint32 int32;
+  gint x, y, z;
 
   settings = g_settings_new ("org.gsettings.test.storage-test");
 
@@ -273,7 +274,7 @@ breakage_test (gconstpointer user_data)
   g_usleep (10000);
 
   g_settings_get (settings, "box", "(iii)", &x, &y, &z);
-  g_assert (x==20 && y==30 && z==30);
+  g_assert (x == 20 && y == 30 && z == 30);
 
   /* Set a string to 0 length - this needs special handling to be treated as ""
    * rather than NULL */
@@ -331,7 +332,8 @@ delete_old_keys (void)
 }
 
 int
-main (int argc, char **argv)
+main (int    argc,
+      char **argv)
 {
   gint test_result;
 

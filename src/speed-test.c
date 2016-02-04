@@ -18,31 +18,33 @@
 #include <windows.h>
 #include <shlwapi.h>
 
-/* g_warning including a windows error message. */
 static void
-g_warning_win32_error (DWORD result_code,
+g_warning_win32_error (DWORD        result_code,
                        const gchar *format,
                        ...)
 {
   va_list va;
-  gint pos;
-  gchar win32_message[1024];
+  gchar *message;
+  gchar *win32_error;
+  gchar *win32_message;
 
-  if (result_code == 0)
-    result_code = GetLastError ();
+  g_return_if_fail (result_code != 0);
 
   va_start (va, format);
-  pos = g_vsnprintf (win32_message, 512, format, va);
+  message = g_strdup_vprintf (format, va);
+  win32_error = g_win32_error_message (result_code);
+  win32_message = g_strdup_printf ("%s: %s", message, win32_error);
+  g_free (message);
+  g_free (win32_error);
 
-  win32_message[pos++] = ':'; win32_message[pos++] = ' ';
-  
-  FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM, NULL, result_code, 0, (LPTSTR)(win32_message+pos),
-                1023 - pos, NULL);
-  g_warning (win32_message);
+  g_warning ("%s", win32_message);
+
+  g_free (win32_message);
 }
 
 static gboolean
-reg_open_path (gchar *key_name, HKEY *hkey)
+reg_open_path (const gchar *key_name,
+               HKEY        *hkey)
 {
   gchar *path;
   gunichar2 *pathw;
@@ -65,19 +67,22 @@ reg_open_path (gchar *key_name, HKEY *hkey)
 static void
 basic_test(gconstpointer *data)
 {
-  GTimer *timer = g_timer_new ();
+  GTimer *timer;
+  GMainLoop *main_loop;
+  GSettings *settings;
   gdouble time;
-  gint    i;
-  gchar  *string;
+  gint i;
+  gchar *string;
 
-  GMainLoop *main_loop = g_main_loop_new (NULL, FALSE);
-  GSettings *settings = g_settings_new ("org.gsettings.test.storage-test");
+  timer = g_timer_new ();
+  main_loop = g_main_loop_new (NULL, FALSE);
+  settings = g_settings_new ("org.gsettings.test.storage-test");
 
   g_timer_reset (timer);
   for (i = 0; i < 10000; i++)
     {
-      char string[32];
-      g_snprintf (string, 31, "testing %i", i);
+      gchar string[32];
+      g_snprintf (string, 31, "testing %d", i);
       g_settings_set_string (settings, "string", string);
     }
   time = g_timer_elapsed (timer, NULL);
@@ -113,19 +118,20 @@ delete_old_keys (void)
 }
 
 int
-main (int argc, char **argv)
+main (int    argc,
+      char **argv)
 {
   gint result;
 
   g_test_init (&argc, &argv, NULL);
 
-  delete_old_keys();
+  delete_old_keys ();
 
   g_test_add_data_func ("/gsettings/speed/Basic", NULL, basic_test);
 
-  result = g_test_run();
+  result = g_test_run ();
 
-  delete_old_keys();
+  delete_old_keys ();
 
   return result;
 }
