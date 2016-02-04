@@ -22,7 +22,7 @@
 static void
 g_warning_win32_error (DWORD result_code,
                        const gchar *format,
-                      ...)
+                       ...)
 {
   va_list va;
   gint pos;
@@ -45,15 +45,20 @@ static gboolean
 reg_open_path (gchar *key_name, HKEY *hkey)
 {
   gchar *path;
-  LONG   result;
+  gunichar2 *pathw;
+  LONG result;
  
   path = g_build_path ("\\", "Software\\GSettings", key_name, NULL);
+  pathw = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
 
-  result = RegOpenKeyExA (HKEY_CURRENT_USER, path, 0, KEY_ALL_ACCESS, hkey);
+  result = RegOpenKeyExW (HKEY_CURRENT_USER, pathw, 0, KEY_ALL_ACCESS, hkey);
+  g_free (pathw);
+
   if (result != ERROR_SUCCESS)
     g_warning_win32_error (result, "Error opening registry path %s", path);
 
   g_free (path);
+
   return (result == ERROR_SUCCESS);
 }
 
@@ -69,7 +74,7 @@ basic_test(gconstpointer *data)
   GSettings *settings = g_settings_new ("org.gsettings.test.storage-test");
 
   g_timer_reset (timer);
-  for (i=0; i<10000; i++)
+  for (i = 0; i < 10000; i++)
     {
       char string[32];
       g_snprintf (string, 31, "testing %i", i);
@@ -79,48 +84,48 @@ basic_test(gconstpointer *data)
   fprintf (stderr, "Write distinct strings: %f\n", time);
 
   g_timer_reset (timer);
-  for (i=0; i<10000; i++)
+  for (i = 0; i < 10000; i++)
     g_settings_set_string (settings, "string", "Testing");
   time = g_timer_elapsed (timer, NULL);
   fprintf (stderr, "Write identical strings: %f\n", time);
 
   g_timer_reset (timer);
-  for (i=0; i<10000; i++)
+  for (i = 0; i < 10000; i++)
     string = g_settings_get_string (settings, "string");
   time = g_timer_elapsed (timer, NULL);
   fprintf (stderr, "Read string: %f\n", time);
 
-
   g_object_unref (settings);
   g_main_loop_unref (main_loop);
+}
+
+static void
+delete_old_keys (void)
+{
+  HKEY hparent;
+
+  /* If all the tests pass, now we delete the evidence */
+  if (reg_open_path (NULL, &hparent))
+    {
+      SHDeleteKeyW(hparent, L"tests\\storage");
+      RegCloseKey (hparent);
+    }
 }
 
 int
 main (int argc, char **argv)
 {
   gint result;
-  HKEY hparent;
 
   g_test_init (&argc, &argv, NULL);
+
+  delete_old_keys();
 
   g_test_add_data_func ("/gsettings/speed/Basic", NULL, basic_test);
 
   result = g_test_run();
 
-  /* If all the tests pass, now we delete the evidence */
-  if (reg_open_path (NULL, &hparent))
-    {
-      wchar_t *subpath = L"tests\\storage";
-      LONG result = SHDeleteKeyW (hparent, subpath);
-      if (result != ERROR_SUCCESS)
-        {
-          g_warning_win32_error (result, "Error deleting test keys - couldn't delete %s:", 
-                                 subpath);
-          return 1;
-        }
-      
-      RegCloseKey (hparent);
-    }
+  delete_old_keys();
 
   return result;
 }
