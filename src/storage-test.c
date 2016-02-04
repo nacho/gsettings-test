@@ -19,51 +19,7 @@
 #include <windows.h>
 #include <shlwapi.h>
 
-static void
-g_warning_win32_error (DWORD        result_code,
-                       const gchar *format,
-                       ...)
-{
-  va_list va;
-  gchar *message;
-  gchar *win32_error;
-  gchar *win32_message;
-
-  g_return_if_fail (result_code != 0);
-
-  va_start (va, format);
-  message = g_strdup_vprintf (format, va);
-  win32_error = g_win32_error_message (result_code);
-  win32_message = g_strdup_printf ("%s: %s", message, win32_error);
-  g_free (message);
-  g_free (win32_error);
-
-  g_warning ("%s", win32_message);
-
-  g_free (win32_message);
-}
-
-static gboolean
-reg_open_path (const gchar *key_name,
-               HKEY        *hkey)
-{
-  gchar *path;
-  gunichar2 *pathw;
-  LONG result;
- 
-  path = g_build_path ("\\", "Software\\GSettings", key_name, NULL);
-  pathw = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
-
-  result = RegOpenKeyExW (HKEY_CURRENT_USER, pathw, 0, KEY_ALL_ACCESS, hkey);
-  g_free (pathw);
-
-  if (result != ERROR_SUCCESS)
-    g_warning_win32_error (result, "Error opening registry path %s", path);
-
-  g_free (path);
-
-  return (result == ERROR_SUCCESS);
-}
+#include "utils.h"
 
 #define TEST_TYPE(_s, _t, _f, _k, _d, _i)  { \
   _t value;                                  \
@@ -222,7 +178,7 @@ breakage_test (gconstpointer user_data)
   //printf ("Will it notify again ???\n");
   g_usleep (10000);
 
-  if (reg_open_path ("tests\\storage", &hpath))
+  if (util_registry_open_path ("tests\\storage", &hpath))
     {
       LONG result = RegDeleteValueW (hpath, L"string");
       if (result != ERROR_SUCCESS)
@@ -244,7 +200,7 @@ breakage_test (gconstpointer user_data)
   /* Change the type of a key */
   g_settings_set_int (settings, "int32", 666);
 
-  if (reg_open_path ("tests\\storage", &hpath))
+  if (util_registry_open_path ("tests\\storage", &hpath))
     {
       LONG result = RegSetValueExW (hpath, L"int32", 0, REG_SZ,
                                     "I am not a number!!", 20);
@@ -261,7 +217,7 @@ breakage_test (gconstpointer user_data)
   /* Break a literal */
   g_settings_set (settings, "box", "(iii)", 11, 19, 86);
 
-  if (reg_open_path ("tests\\storage", &hpath))
+  if (util_registry_open_path ("tests\\storage", &hpath))
     {
       LONG result = RegSetValueExW (hpath, L"box", 0, REG_SZ,
                                     "£6%^*$£ Ésta GVáriant es la peor ^$^&*", 46);
@@ -280,7 +236,7 @@ breakage_test (gconstpointer user_data)
    * rather than NULL */
   g_settings_set_string (settings, "string", "");
 
-  if (reg_open_path ("tests\\storage", &hpath))
+  if (util_registry_open_path ("tests\\storage", &hpath))
     {
       LONG result = RegSetValueExW (hpath, L"string", 0, REG_SZ, "", 0);
       if (result != ERROR_SUCCESS)
@@ -301,7 +257,7 @@ breakage_test (gconstpointer user_data)
                                        "/tests/storage/long-path/");
   g_settings_set (settings, "marker", "ms", "maybe... maybe not");
 
-  if (reg_open_path ("tests\\storage", &hpath))
+  if (util_registry_open_path ("tests\\storage", &hpath))
     {
       LONG result = RegDeleteKeyW (hpath, L"long-path");
       if (result != ERROR_SUCCESS)
@@ -324,7 +280,7 @@ delete_old_keys (void)
   HKEY hparent;
 
   /* If all the tests pass, now we delete the evidence */
-  if (reg_open_path (NULL, &hparent))
+  if (util_registry_open_path (NULL, &hparent))
     {
       SHDeleteKeyW(hparent, L"tests\\storage");
       RegCloseKey (hparent);

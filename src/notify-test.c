@@ -18,71 +18,7 @@
 #include <windows.h>
 #include <shlwapi.h>
 
-static void
-g_warning_win32_error (DWORD        result_code,
-                       const gchar *format,
-                       ...)
-{
-  va_list va;
-  gchar *message;
-  gchar *win32_error;
-  gchar *win32_message;
-
-  g_return_if_fail (result_code != 0);
-
-  va_start (va, format);
-  message = g_strdup_vprintf (format, va);
-  win32_error = g_win32_error_message (result_code);
-  win32_message = g_strdup_printf ("%s: %s", message, win32_error);
-  g_free (message);
-  g_free (win32_error);
-
-  g_warning ("%s", win32_message);
-
-  g_free (win32_message);
-}
-
-#define g_assert_no_win32_error(_r, _m)  G_STMT_START \
-  if ((_r) != ERROR_SUCCESS)                         \
-    g_warning_win32_error ((_r), (_m));  G_STMT_END
-
-static gboolean
-reg_open_path (const gchar *key_name,
-               HKEY        *hkey)
-{
-  gchar *path;
-  gunichar2 *pathw;
-  LONG result;
- 
-  path = g_build_path ("\\", "Software\\GSettings", key_name, NULL);
-  pathw = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
-
-  result = RegOpenKeyExW (HKEY_CURRENT_USER, pathw, 0, KEY_ALL_ACCESS, hkey);
-  g_free (pathw);
-
-  if (result != ERROR_SUCCESS)
-    g_warning_win32_error (result, "Error opening registry path %s", path);
-
-  g_free (path);
-
-  return (result == ERROR_SUCCESS);
-}
-
-static void
-main_iterate ()
-{
-  gint i;
-
-  /* We iterate the main loop for a while, even after we have received the
-   * change notification, to catch if we are getting more than one when only
-   * one thing has changed.
-   */
-  for (i = 0; i < 1000; i++)
-    {
-      g_main_context_iteration (NULL, FALSE);
-      g_usleep (100);
-    }
-}
+#include "utils.h"
 
 typedef struct {
   gboolean  change_flag;
@@ -122,7 +58,7 @@ basic_test (gconstpointer test_data)
   /* Test simple notifications. */
   change.change_flag = FALSE;
   g_settings_set_string (settings, "string", "Notify me");
-  main_iterate ();
+  util_main_iterate ();
   g_assert_cmpstr (change.key, ==, "string");
   string = g_settings_get_string (settings, "string");
   g_assert_cmpstr (string, ==, "Notify me");
@@ -130,7 +66,7 @@ basic_test (gconstpointer test_data)
 
   change.change_flag = FALSE;
   g_settings_set_int (settings, "int32", 1691);
-  main_iterate ();
+  util_main_iterate ();
   g_assert_cmpstr (change.key, ==, "int32");
   int32 = g_settings_get_int (settings, "int32");
   g_assert (int32 == 1691);
@@ -138,7 +74,7 @@ basic_test (gconstpointer test_data)
 
   change.change_flag = FALSE;
   g_settings_set (settings, "qword", "x", (gint64)-778019);
-  main_iterate ();
+  util_main_iterate ();
   g_assert_cmpstr (change.key, ==, "qword");
   g_settings_get (settings, "qword", "x", &int64);
   g_assert (int64 == -778019);
@@ -146,7 +82,7 @@ basic_test (gconstpointer test_data)
 
   change.change_flag = FALSE;
   g_settings_set (settings, "box", "(iii)", -1, 99, 11111);
-  main_iterate ();
+  util_main_iterate ();
   g_assert_cmpstr (change.key, ==, "box");
   g_settings_get (settings, "box", "(iii)", &x, &y, &z);
   g_assert (x == -1 && y == 99 && z == 11111);
@@ -155,7 +91,7 @@ basic_test (gconstpointer test_data)
   /* Test resettting */
   change.change_flag = FALSE;
   g_settings_reset (settings, "string");
-  main_iterate ();
+  util_main_iterate ();
   g_assert_cmpstr (change.key, ==, "string");
   string = g_settings_get_string (settings, "string");
   g_assert_cmpstr (string, ==, "Hello world");
@@ -186,7 +122,7 @@ manual_test (gconstpointer test_data)
   g_settings_set_string (settings, "string", "I'm getting deleted!");
 
   while (change.change_flag == FALSE)
-    main_iterate ();
+    util_main_iterate ();
 
   g_assert_cmpstr (change.key, ==, "string");
   string = g_settings_get_string (settings, "string");
@@ -198,15 +134,16 @@ manual_test (gconstpointer test_data)
    * is externally changed
    */
   change.change_flag = FALSE;
-  if (reg_open_path ("tests\\storage", &hpath))
+  if (util_registry_open_path ("tests\\storage", &hpath))
     {
       result = RegDeleteValueW (hpath, L"string");
       g_assert_no_win32_error (result, "Error deleting value 'string'");
+      
+      RegCloseKey (hpath);
     }
-  RegCloseKey (hpath);
 
   while (change.change_flag == FALSE)
-    main_iterate();
+    util_main_iterate();
 
   g_assert_cmpstr(change.key, == , "string");
   string = g_settings_get_string(settings, "string");
@@ -217,15 +154,16 @@ manual_test (gconstpointer test_data)
   /* Add a value */
   g_settings_reset (settings, "double");
   change.change_flag = FALSE;
-  if (reg_open_path ("tests\\storage", &hpath))
+  if (util_registry_open_path ("tests\\storage", &hpath))
     {
       result = RegSetValueExW (hpath, L"double", 0, REG_SZ, "2.99e8", 7);
       g_assert_no_win32_error (result, "Error setting value 'double'");
+      
       RegCloseKey (hpath);
     }
 
   while (change.change_flag == FALSE)
-    main_iterate ();
+    util_main_iterate ();
 
   g_assert (change.change_flag == TRUE);
   g_assert_cmpstr (change.key, ==, "double");
@@ -240,7 +178,7 @@ manual_test (gconstpointer test_data)
 
   /* Add some keys */
   change.change_flag = FALSE;
-  if (reg_open_path ("tests\\storage", &hpath))
+  if (util_registry_open_path ("tests\\storage", &hpath))
     {
       HKEY hsubpath1, hsubpath2, hsubpath3;
 
@@ -268,7 +206,7 @@ manual_test (gconstpointer test_data)
 
       RegCloseKey (hpath);
     }
-  main_iterate ();
+  util_main_iterate ();
 
   g_settings_get (s2, "marker", "ms", &string);
   g_assert (string == NULL);
@@ -300,7 +238,7 @@ breakage_test (gconstpointer test_data)
    * here and it's GSettings that ignores it, but that's fine, it shouldn't
    * happen really) */
   change.change_flag = FALSE;
-  if (reg_open_path ("tests\\storage", &hpath))
+  if (util_registry_open_path ("tests\\storage", &hpath))
     {
       result = RegSetValueExW (hpath, L"intruder", 0, REG_SZ, "oh no", 6);
       if (result != ERROR_SUCCESS)
@@ -310,7 +248,7 @@ breakage_test (gconstpointer test_data)
     }
 
   for (i = 0; i < 100; i++)
-    main_iterate ();
+    util_main_iterate ();
 
   g_assert (change.change_flag == FALSE);
 
@@ -342,7 +280,7 @@ nesting_test (gconstpointer test_data)
 
   g_settings_set (s3, "marker", "ms", "bird");
  
-  if (reg_open_path ("tests\\storage\\nested\\even\\further", &hpath))
+  if (util_registry_open_path ("tests\\storage\\nested\\even\\further", &hpath))
     {
       result = RegSetValueExW (hpath, L"marker", 0, REG_SZ, "\"tasty food\"", 12);
       if (result != ERROR_SUCCESS)
@@ -386,9 +324,8 @@ stress_test (gconstpointer test_data)
       g_assert_cmpint (g_settings_get_int (settings[j], "a-5"), ==, i);
     }
 
-  for (i=0; i<100; i++)
+  for (i = 0; i < 100; i++)
     g_object_unref (settings[i]);
-
 
   /* Now watch 63 different paths. */
 
@@ -404,8 +341,8 @@ stress_test (gconstpointer test_data)
 
   for (i = 0; i < 1000; i++)
     {
-      const char *string,
-                 *nonsense[10] = {
+      const gchar *string,
+                  *nonsense[10] = {
         "Leeds", "London", "Manchester", "Bristol", "Birmingham",
         "Shrewsbury", "Swansea", "Harrogate", "Llanyfyllin", "Perth"
       };
@@ -429,7 +366,7 @@ delete_old_keys (void)
   HKEY hparent;
 
   /* If all the tests pass, now we delete the evidence */
-  if (reg_open_path (NULL, &hparent))
+  if (util_registry_open_path (NULL, &hparent))
     {
       SHDeleteKeyW(hparent, L"tests\\storage");
       RegCloseKey (hparent);
