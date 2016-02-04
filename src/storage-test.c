@@ -116,9 +116,6 @@ hard_test (gconstpointer user_data)
   settings = g_settings_new ("org.gsettings.test.storage-test");
 
   TEST_TYPE (settings, gdouble, "d", "double", 3.1415926535897932, -10000000000.5);
-  
-  int value = g_settings_get_enum (settings, "cheese");
-  g_assert (value == SHROPSHIRE_BLUE);
 
   g_object_unref (settings);
 }
