@@ -152,13 +152,39 @@ manual_test (gconstpointer test_data)
   g_free(change.key);
 
   /* Add a value */
+  change.change_flag = FALSE;
   g_settings_reset (settings, "double");
+  util_main_iterate();
+
   change.change_flag = FALSE;
   if (util_registry_open_path ("tests\\storage", &hpath))
     {
       result = RegSetValueExW (hpath, L"double", 0, REG_SZ, L"2.99e8", 7 * sizeof (gunichar2));
       g_assert_no_win32_error (result, "Error setting value 'double'");
       
+      RegCloseKey (hpath);
+    }
+
+  while (change.change_flag == FALSE)
+    util_main_iterate ();
+
+  g_assert (change.change_flag == TRUE);
+  g_assert_cmpstr (change.key, ==, "double");
+  double_value = g_settings_get_double (settings, "double");
+  g_assert_cmpfloat (double_value, ==, 299000000.0);
+  g_free (change.key);
+
+  /* the same but using the ansi version to modify the registry */
+  change.change_flag = FALSE;
+  g_settings_reset(settings, "double");
+  util_main_iterate();
+
+  change.change_flag = FALSE;
+  if (util_registry_open_path ("tests\\storage", &hpath))
+    {
+      result = RegSetValueExA (hpath, "double", 0, REG_SZ, "2.99e8", 7);
+      g_assert_no_win32_error (result, "Error setting value 'double'");
+
       RegCloseKey (hpath);
     }
 
