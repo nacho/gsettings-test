@@ -156,7 +156,7 @@ manual_test (gconstpointer test_data)
   change.change_flag = FALSE;
   if (util_registry_open_path ("tests\\storage", &hpath))
     {
-      result = RegSetValueExW (hpath, L"double", 0, REG_SZ, "2.99e8", 7);
+      result = RegSetValueExW (hpath, L"double", 0, REG_SZ, L"2.99e8", 7 * sizeof (gunichar2));
       g_assert_no_win32_error (result, "Error setting value 'double'");
       
       RegCloseKey (hpath);
@@ -240,7 +240,7 @@ breakage_test (gconstpointer test_data)
   change.change_flag = FALSE;
   if (util_registry_open_path ("tests\\storage", &hpath))
     {
-      result = RegSetValueExW (hpath, L"intruder", 0, REG_SZ, "oh no", 6);
+      result = RegSetValueExW (hpath, L"intruder", 0, REG_SZ, L"oh no", 6 * sizeof (gunichar2));
       if (result != ERROR_SUCCESS)
         g_warning_win32_error (result, "Error setting value 'intruder'");
       
@@ -282,7 +282,7 @@ nesting_test (gconstpointer test_data)
  
   if (util_registry_open_path ("tests\\storage\\nested\\even\\further", &hpath))
     {
-      result = RegSetValueExW (hpath, L"marker", 0, REG_SZ, "\"tasty food\"", 12);
+      result = RegSetValueExW (hpath, L"marker", 0, REG_SZ, L"\"tasty food\"", 12 * sizeof (gunichar2));
       if (result != ERROR_SUCCESS)
         g_warning_win32_error (result, "Error setting value 'intruder'");
       
