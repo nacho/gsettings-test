@@ -281,6 +281,30 @@ breakage_test (gconstpointer user_data)
 }
 
 static void
+escape_test (gconstpointer user_data)
+{
+  GSettings *settings;
+  gchar *string;
+  gchar **strv;
+  const gchar *value[] = { "foo\\.bar", "\\pipo\\.bar", NULL };
+
+  settings = g_settings_new ("org.gsettings.test.storage-test");
+
+  g_settings_set_string (settings, "string", "foo\\.bar");
+  string = g_settings_get_string (settings, "string");
+  g_assert_cmpstr (string, == , "foo\\.bar");
+  g_free (string);
+
+  g_settings_set_strv (settings, "strv", value);
+  strv = g_settings_get_strv (settings, "strv");
+  g_assert_cmpstr (strv[0], == , "foo\\.bar");
+  g_assert_cmpstr (strv[1], == , "\\pipo\\.bar");
+  g_strfreev (strv);
+
+  g_object_unref (settings);
+}
+
+static void
 delete_old_keys (void)
 {
   HKEY hparent;
@@ -309,6 +333,7 @@ main (int    argc,
   g_test_add_data_func ("/gsettings/Delay apply", NULL, delay_apply_test);
   g_test_add_data_func ("/gsettings/Relocation", NULL, relocation_test);
   g_test_add_data_func ("/gsettings/Breakage", NULL, breakage_test);
+  g_test_add_data_func ("/gsettings/Escapes", NULL, escape_test);
 
   test_result = g_test_run ();
 
