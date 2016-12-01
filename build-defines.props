@@ -11,10 +11,10 @@
     <UnpackedClientDir Condition="'$(Platform)'=='Win32'">$(UnpackedDir)\client\x86\$(Configuration)</UnpackedClientDir>
     <UnpackedClientDir Condition="'$(Platform)'=='x64'">$(UnpackedDir)\client\x64\$(Configuration)</UnpackedClientDir>
     <GtkBinariesDir>c:\gtk-build\gtk</GtkBinariesDir>
-    <MkEnumsCmd>$(PerlPath)\bin\perl.exe $(GtkBinariesDir)\$(Platform)\bin\glib-mkenums</MkEnumsCmd>
-    <GLibCompileSchemas>$(GtkBinariesDir)\$(Platform)\bin\glib-compile-schemas.exe</GLibCompileSchemas>
-    <GLibIncludeDirectories>$(GtkBinariesDir)\$(Platform)\include\glib-2.0;$(GtkBinariesDir)\$(Platform)\include\gio-win32-2.0;$(GtkBinariesDir)\$(Platform)\include;$(GtkBinariesDir)\$(Platform)\lib\glib-2.0\include</GLibIncludeDirectories>
-    <GLibLibraryDirectories>$(GtkBinariesDir)\$(Platform)\lib</GLibLibraryDirectories>
+    <MkEnumsCmd>$(PerlPath)\bin\perl.exe $(GtkBinariesDir)\$(Platform)\$(Configuration)\bin\glib-mkenums</MkEnumsCmd>
+    <GLibCompileSchemas>$(GtkBinariesDir)\$(Platform)\$(Configuration)\bin\glib-compile-schemas.exe</GLibCompileSchemas>
+    <GLibIncludeDirectories>$(GtkBinariesDir)\$(Platform)\$(Configuration)\include\glib-2.0;$(GtkBinariesDir)\$(Platform)\$(Configuration)\include\gio-win32-2.0;$(GtkBinariesDir)\$(Platform)\$(Configuration)\include;$(GtkBinariesDir)\$(Platform)\$(Configuration)\lib\glib-2.0\include</GLibIncludeDirectories>
+    <GLibLibraryDirectories>$(GtkBinariesDir)\$(Platform)\$(Configuration)\lib</GLibLibraryDirectories>
   </PropertyGroup>
   <ItemGroup>
     <BuildMacro Include="ModExportCFlags">

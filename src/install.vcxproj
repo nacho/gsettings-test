@@ -31,11 +31,11 @@
   <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   <Import Project="$(SolutionDir)\build-defines.props" />
   <ItemGroup>
-    <None Include="$(GtkBinariesDir)\$(Platform)\bin\*.pdb" />
-    <None Include="$(GtkBinariesDir)\$(Platform)\bin\*.dll" />
-    <None Include="$(GtkBinariesDir)\$(Platform)\bin\gspawn-win$(PlatformArchitecture)-helper.exe" />
-    <None Include="$(GtkBinariesDir)\$(Platform)\bin\gspawn-win$(PlatformArchitecture)-helper-console.exe" />
-    <None Include="$(GtkBinariesDir)\$(Platform)\bin\glib-compile-schemas.exe" />
+    <None Include="$(GtkBinariesDir)\$(Platform)\$(Configuration)\bin\*.pdb" />
+    <None Include="$(GtkBinariesDir)\$(Platform)\$(Configuration)\bin\*.dll" />
+    <None Include="$(GtkBinariesDir)\$(Platform)\$(Configuration)\bin\gspawn-win$(PlatformArchitecture)-helper.exe" />
+    <None Include="$(GtkBinariesDir)\$(Platform)\$(Configuration)\bin\gspawn-win$(PlatformArchitecture)-helper-console.exe" />
+    <None Include="$(GtkBinariesDir)\$(Platform)\$(Configuration)\bin\glib-compile-schemas.exe" />
     <Schemas Include="$(SolutionDir)schemas\*.xml" />
   </ItemGroup>
   <ItemGroup>
