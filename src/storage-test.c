@@ -87,8 +87,14 @@ complex_test (gconstpointer user_data)
 {
   GSettings *settings;
   GVariant *variant;
+  gchar **strv;
 
   settings = g_settings_new ("org.gsettings.test.storage-test");
+
+  strv = g_settings_get_strv (settings, "strv");
+  g_assert_cmpstr (strv[0], == , "Hello world");
+  g_assert_cmpstr (strv[1], == , "Pipo");
+  g_strfreev (strv);
 
   /* If these reads go okay, I'm sure the values are fine (unless GVariant is broken) */
   variant = g_settings_get_value (settings, "breakfast");

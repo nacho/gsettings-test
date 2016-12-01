@@ -34,6 +34,10 @@
 
     <!-- Complex types -->
 
+    <key name="strv" type="as">
+      <default>["Hello world","Pipo"]</default>
+    </key>
+
     <key name="box" type="(iii)">
       <default>(20,30,30)</default>
     </key>
