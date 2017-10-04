@@ -304,6 +304,30 @@ escape_test (gconstpointer user_data)
   g_object_unref (settings);
 }
 
+/* Test support for key longer than 32 characters */
+static void
+long_key_test(gconstpointer user_data)
+{
+    GSettings *settings;
+
+    settings = g_settings_new("org.gsettings.test.storage-test");
+    g_settings_delay(settings);
+
+    g_settings_set_int(settings, "k12345678901234567890123456789012", 88);
+
+    g_settings_apply(settings);
+
+    g_assert_cmpint(g_settings_get_int(settings, "k12345678901234567890123456789012"), == , 88);
+    g_object_unref(settings);
+
+    settings = g_settings_new("org.gsettings.test.storage-test");
+    g_assert_cmpint(g_settings_get_int(settings, "k12345678901234567890123456789012"), == , 88);
+
+    g_settings_reset(settings, "k12345678901234567890123456789012");
+
+    g_object_unref(settings);
+}
+
 static void
 delete_old_keys (void)
 {
@@ -334,6 +358,7 @@ main (int    argc,
   g_test_add_data_func ("/gsettings/Relocation", NULL, relocation_test);
   g_test_add_data_func ("/gsettings/Breakage", NULL, breakage_test);
   g_test_add_data_func ("/gsettings/Escapes", NULL, escape_test);
+  g_test_add_data_func ("/gsettings/Long Key", NULL, long_key_test);
 
   test_result = g_test_run ();
 

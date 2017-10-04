@@ -25,6 +25,9 @@
       <default l10n="messages">"Junk"</default>
     </key>
 
+    <key name="k12345678901234567890123456789012" type="i">
+      <default>666666</default>
+    </key>
 
     <!-- Hard types -->
     <key name="double" type="d">
